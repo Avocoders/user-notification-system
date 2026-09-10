@@ -4,24 +4,38 @@ import io.github.avocoders.userservicespring.dto.CreateUserRequest;
 import io.github.avocoders.userservicespring.dto.UpdateUserRequest;
 import io.github.avocoders.userservicespring.dto.UserResponse;
 import io.github.avocoders.userservicespring.entity.User;
+import io.github.avocoders.userservicespring.event.UserEvent;
 import io.github.avocoders.userservicespring.exception.UserNotFoundException;
+import io.github.avocoders.userservicespring.kafka.UserEventPublisher;
 import io.github.avocoders.userservicespring.mapper.UserMapper;
 import io.github.avocoders.userservicespring.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+
+import static io.github.avocoders.userservicespring.event.UserOperation.CREATED;
 
 @Service
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final UserEventPublisher userEventPublisher;
 
     public UserResponse create(CreateUserRequest request) {
         User user = userMapper.toEntity(request);
         User savedUser = userRepository.save(user);
+        UserEvent userEvent = new UserEvent(
+                                            CREATED,
+                                            savedUser.getId(),
+                                            savedUser.getName(),
+                                            savedUser.getEmail(),
+                                            savedUser.getAge()
+                                            );
+        userEventPublisher.publish(userEvent);
         return userMapper.toResponse(savedUser);
     }
 
