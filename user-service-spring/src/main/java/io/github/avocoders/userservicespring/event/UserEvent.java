@@ -4,6 +4,7 @@ public record UserEvent(
         UserOperation operation,
         Long userId,
         String name,
-        String email
+        String email,
+        Integer age
 ) {
 }
