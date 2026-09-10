@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 import static io.github.avocoders.userservicespring.event.UserOperation.CREATED;
+import static io.github.avocoders.userservicespring.event.UserOperation.DELETED;
 
 @Service
 @RequiredArgsConstructor
@@ -58,7 +59,15 @@ public class UserService {
 
     public void delete(Long id) {
         User foundUser = findUserById(id);
+        UserEvent userEvent = new UserEvent(
+                                            DELETED,
+                                            foundUser.getId(),
+                                            foundUser.getName(),
+                                            foundUser.getEmail(),
+                                            foundUser.getAge()
+                                            );
         userRepository.delete(foundUser);
+        userEventPublisher.publish(userEvent);
     }
 
     private User findUserById(Long id) {
