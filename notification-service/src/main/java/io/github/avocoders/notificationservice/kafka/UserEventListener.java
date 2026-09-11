@@ -3,11 +3,13 @@ package io.github.avocoders.notificationservice.kafka;
 import io.github.avocoders.notificationservice.event.UserEvent;
 import io.github.avocoders.notificationservice.service.EmailNotificationService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class UserEventListener {
     private final EmailNotificationService emailNotificationService;
 
@@ -29,11 +31,23 @@ public class UserEventListener {
                     "Неизвестная операция: " + userEvent.operation()
             );
         }
-         emailNotificationService.sendEmail(
-                 userEvent.email(),
-                 subject,
-                 body
-         );
-        System.out.println(userEvent);
+        log.info("Получено событие из Kafka: {}", userEvent);
+
+        try {
+            emailNotificationService.sendEmail(
+                    userEvent.email(),
+                    subject,
+                    body
+            );
+
+            log.info("Письмо отправлено пользователю: {}", userEvent.email());
+
+        } catch (Exception e) {
+
+            log.error("Ошибка отправки письма пользователю: {}", userEvent.email(), e);
+            throw e;
+        }
+
     }
+
 }
