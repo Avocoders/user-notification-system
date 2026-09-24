@@ -33,3 +33,77 @@ services:
       POSTGRES_DB: user_service_spring
       POSTGRES_USER: user_name
       POSTGRES_PASSWORD: ${DB_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user_name -d user_service_spring"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  discovery-server:
+    build:
+      context: ./discovery-server
+    container_name: user-system-discovery-server
+    ports:
+      - "8761:8761"
+
+  config-server:
+    build:
+      context: ./config-server
+    container_name: user-system-config-server
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./config-repo:/config-repo:ro
+    environment:
+      SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS: file:/config-repo
+
+  user-service-spring:
+    build:
+      context: ./user-service-spring
+    container_name: user-system-service-spring
+    ports:
+      - "8082:8082"
+    restart: on-failure
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+      DB_PASSWORD: ${DB_PASSWORD}
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      config-server:
+        condition: service_started
+      discovery-server:
+        condition: service_started
+
+  notification-service:
+    build:
+      context: ./notification-service
+    container_name: user-system-notification-service
+    ports:
+      - "8081:8081"
+    restart: on-failure
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+    depends_on:
+      - kafka
+      - mailpit
+      - config-server
+      - discovery-server
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+    container_name: user-system-api-gateway
+    ports:
+      - "8080:8080"
+    restart: on-failure
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+    depends_on:
+      - config-server
+      - discovery-server
